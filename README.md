@@ -15,3 +15,10 @@ entered.
 See [crossing paths](http://planbperformance.net/index.php?id=crossingpaths) and
 [day in the life](http://planbperformance.net/index.php?id=dayinlife) for examples of
 projects made with this software.
+
+### method ###
+* Queries the database (only arg) to generate a list of users and
+  randomise rgb values for their dots
+* Finds max and min lat / lon for all points in database and
+  generates an apppropriate centre point for the animation
+* Calculates an appropriate zoom level for the animation
