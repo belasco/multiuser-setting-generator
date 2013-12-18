@@ -20,8 +20,8 @@
 
 # TODO:
 
-# 1. make rgb random generate more distinct colours by
-# generating in hsv first then converting
+# 1. make rgb random generate more distinct by
+# checking hue value and running random again if it is too close
 # http://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
 
 # Copyright (C) 2013 Daniel Belasco Rogers danbelasco@yahoo.co.uk
@@ -42,6 +42,8 @@
 # 02110-1301 USA.
 
 import sys
+import os.path
+from colorsys import hsv_to_rgb
 from optparse import OptionParser
 from datetime import datetime
 try:
@@ -65,8 +67,8 @@ except ImportError:
     print 'Or install manually from pypi'
     print '*' * 48
     sys.exit(2)
-from random import randrange
-import os.path
+from random import random
+
 
 TEMPLATE1 = """<?xml version="1.0" encoding="UTF-8"?>
 <drawinglife>
@@ -77,7 +79,7 @@ TEMPLATE2 = """</database>
     <person>
 """
 
-TEMPLATE3 = """  </person>
+TEMPLATE3 = """    </person>
   </data>
 <dbquery>
   <!-- There are four query types: -->
@@ -122,8 +124,8 @@ TEMPLATE6 = """</drawspeed>
   <!-- To draw all points set 0 (very cpu intensive) -->
   <walklength>0</walklength>
   <boundingbox>
-    <auto>1</auto>
-    <static>0</static>
+    <auto>0</auto>
+    <static>1</static>
     <position lat='"""
 
 TEMPLATE7 = "' lon='"
@@ -261,9 +263,6 @@ def isotodatetime(isodate):
     """
     take an iso format date and transform into a python datetime
     object.
-
-    This is the builtiin way of doing it that might be slower,
-    but is much better than the below. Here it is for reference
     """
     outputdate = datetime.strptime(isodate, "%Y-%m-%d %H:%M:%S")
     return outputdate
@@ -299,7 +298,7 @@ FROM 'files'"""
     data = getsql(dbpath, sql)
     yearstart = isotodatetime(data[0][0])
     yearend = isotodatetime(data[0][1])
-    return str(yearstart.year), str(yearend.year)
+    return yearstart.year, yearend.year
 
 
 def getcentres(dbpath):
@@ -323,20 +322,38 @@ def getcentres(dbpath):
     return centrelat, centrelon, zoom
 
 
+def getdistinctvalues(num):
+    """
+    generate random values for hue which are not too close together
+    in order to produce distinct colours.
+
+    Strategy is to produce a series of values for hue spaced evenly
+    across the range between 0.0 and 1.0 The number of values in
+    the series is defined by the number of users in the list: the
+    more users, the less distinct the colours
+    """
+    huelist = []
+    step = 1.0 / num
+    value = 0.0
+    for i in range(num):
+        huelist.append(value)
+        value += step
+    return huelist
+
+
 def persongenerator(userlist):
     """
-    iterate through the list of users and generate the name tags for
-    the settings xml
+    iterate through the list of users and generate
+    the name tags and the colours for each user
     """
-    namelist = ""
-    for name in userlist:
-        r = randrange(0, 255)
-        g = randrange(0, 255)
-        b = randrange(0, 255)
-        namelist += '    <name r="%d' % r
-        namelist += '" g="%d' % g
-        namelist += '" b="%d' % b
-        namelist += '" a="200" sql="example.sql">'
+    namelist = ''
+    huelist = getdistinctvalues(len(userlist))
+    for idx, name in enumerate(userlist):
+        r, g, b = hsv_to_rgb(huelist[idx], 0.8, 0.95)
+        namelist += '     <name r="%d' % int(r*255)
+        namelist += '" g="%d' % int(g*255)
+        namelist += '" b="%d' % int(b*255)
+        namelist += '" a="100" sql="example.sql">'
         namelist += name[0]
         namelist += '</name>\n'
     return namelist
@@ -352,10 +369,10 @@ def main():
     db = os.path.basename(dbpath)
     yearstart, yearend = getyearrange(dbpath)
     centrelat, centrelon, zoom = getcentres(dbpath)
-    print TEMPLATE1 + db + TEMPLATE2 + namelist + TEMPLATE3 + yearstart\
-      + TEMPLATE4 + yearend + TEMPLATE5 + str(len(userlist)) + TEMPLATE6\
-      + str(centrelat) + TEMPLATE7 + str(centrelon) + TEMPLATE8 + str(zoom)\
-      + TEMPLATE9
+    print TEMPLATE1 + db + TEMPLATE2 + namelist + TEMPLATE3 + str(yearstart)\
+      + TEMPLATE4 + str(yearend) + TEMPLATE5 + str(len(userlist)) + TEMPLATE6\
+      + str(centrelat) + TEMPLATE7 + str(centrelon) + TEMPLATE8\
+      + str(int(zoom)) + TEMPLATE9
 
 
 if __name__ == '__main__':
